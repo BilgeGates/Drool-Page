@@ -1,0 +1,105 @@
+/* ! Custom Styles */
+
+body {
+  font-family: "Poppins", sans-serif;
+  font-size: 16px;
+}
+
+a {
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ! Header Styles */
+
+header {
+  height: 100vh;
+  background-image: url(../img/hero-bg.jpg);
+  background-size: cover;
+}
+
+nav {
+  width: 88%;
+  margin: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 0;
+}
+
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+#myNav {
+  display: none;
+}
+
+.custom-btn i {
+  font-size: 1.5rem;
+}
+
+.custom-menu button {
+  border: none;
+  background: none;
+  font-size: 1.8rem;
+}
+
+.custom-menu button {
+  outline: none;
+  border: none;
+  background-color: transparent;
+}
+
+.custom-menu button div {
+  display: block;
+  width: 35px;
+  height: 4px;
+  margin: 7px 0;
+  background: black;
+  transition: all 0.3s;
+  border-radius: 5px;
+}
+
+.custom-menu button {
+  outline: none;
+  border: none;
+  background-color: transparent;
+}
+
+.overlay {
+  height: 100%;
+  width: 0;
+  position: fixed;
+  z-index: 1;
+  background-color: rgba(10, 32, 80, 0.95);
+  overflow-x: hidden;
+  transition: 0.5s;
+}
+
+.overlay a {
+  text-decoration: none;
+  font-size: 22px;
+  color: #ffffff;
+  display: block;
+  transition: 0.3s;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
+.overlay-content {
+  position: relative;
+  top: 30%;
+  width: 100%;
+  text-align: center;
+  margin-top: 30px;
+}
+
+.menu_width {
+  width: 100%;
+}
