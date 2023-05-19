@@ -1,0 +1,27 @@
+@media (max-width: 1120px) {
+  .slider_section .detail-box {
+    border: none;
+  }
+}
+
+@media (max-width: 992px) {
+  .hero_area {
+    height: auto;
+  }
+
+  .slider_section {
+    padding-bottom: 75px;
+  }
+
+  .carousel-indicators {
+    bottom: -35px;
+  }
+
+  .animal_section .animal_container .box {
+    flex-basis: 45%;
+  }
+
+  .contact_section .form_container {
+    padding: 0;
+  }
+}
