@@ -142,23 +142,6 @@ a:focus {
   outline: none;
 }
 
-.User_option {
-  display: flex;
-
-  align-items: center;
-  margin-left: auto;
-  margin-right: 75px;
-}
-
-.User_option .form-inline {
-  position: relative;
-  margin-right: 15px;
-}
-
-.User_option .form-inline input {
-  display: none;
-}
-
 .custom_menu-btn {
   z-index: 9;
   position: absolute;
