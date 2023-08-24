@@ -87,10 +87,10 @@
       delegateType: TRANSITION_END,
       handle: function handle(event) {
         if ($(event.target).is(this)) {
-          return event.handleObj.handler.apply(this, arguments); // eslint-disable-line prefer-rest-params
+          return event.handleObj.handler.apply(this, arguments);
         }
 
-        return undefined; // eslint-disable-line no-undefined
+        return undefined;
       },
     };
   }
@@ -550,11 +550,6 @@
         );
       }
     );
-  /**
-   * ------------------------------------------------------------------------
-   * jQuery
-   * ------------------------------------------------------------------------
-   */
 
   $.fn[NAME$1] = Button._jQueryInterface;
   $.fn[NAME$1].Constructor = Button;
@@ -570,11 +565,11 @@
   var EVENT_KEY$2 = "." + DATA_KEY$2;
   var DATA_API_KEY$2 = ".data-api";
   var JQUERY_NO_CONFLICT$2 = $.fn[NAME$2];
-  var ARROW_LEFT_KEYCODE = 37; // KeyboardEvent.which value for left arrow key
+  var ARROW_LEFT_KEYCODE = 37;
 
-  var ARROW_RIGHT_KEYCODE = 39; // KeyboardEvent.which value for right arrow key
+  var ARROW_RIGHT_KEYCODE = 39;
 
-  var TOUCHEVENT_COMPAT_WAIT = 500; // Time for mouse compat events to fire after touch
+  var TOUCHEVENT_COMPAT_WAIT = 500;
 
   var SWIPE_THRESHOLD = 40;
   var Default = {
@@ -640,560 +635,542 @@
     PEN: "pen",
   };
 
-  var Carousel =
-    /*#__PURE__*/
-    (function () {
-      function Carousel(element, config) {
-        this._items = null;
-        this._interval = null;
-        this._activeElement = null;
+  var Carousel = (function () {
+    function Carousel(element, config) {
+      this._items = null;
+      this._interval = null;
+      this._activeElement = null;
+      this._isPaused = false;
+      this._isSliding = false;
+      this.touchTimeout = null;
+      this.touchStartX = 0;
+      this.touchDeltaX = 0;
+      this._config = this._getConfig(config);
+      this._element = element;
+      this._indicatorsElement = this._element.querySelector(
+        Selector$2.INDICATORS
+      );
+      this._touchSupported =
+        "ontouchstart" in document.documentElement ||
+        navigator.maxTouchPoints > 0;
+      this._pointerEvent = Boolean(
+        window.PointerEvent || window.MSPointerEvent
+      );
+
+      this._addEventListeners();
+    } // Getters
+
+    var _proto = Carousel.prototype;
+
+    // Public
+    _proto.next = function next() {
+      if (!this._isSliding) {
+        this._slide(Direction.NEXT);
+      }
+    };
+
+    _proto.nextWhenVisible = function nextWhenVisible() {
+      if (
+        !document.hidden &&
+        $(this._element).is(":visible") &&
+        $(this._element).css("visibility") !== "hidden"
+      ) {
+        this.next();
+      }
+    };
+
+    _proto.prev = function prev() {
+      if (!this._isSliding) {
+        this._slide(Direction.PREV);
+      }
+    };
+
+    _proto.pause = function pause(event) {
+      if (!event) {
+        this._isPaused = true;
+      }
+
+      if (this._element.querySelector(Selector$2.NEXT_PREV)) {
+        Util.triggerTransitionEnd(this._element);
+        this.cycle(true);
+      }
+
+      clearInterval(this._interval);
+      this._interval = null;
+    };
+
+    _proto.cycle = function cycle(event) {
+      if (!event) {
         this._isPaused = false;
-        this._isSliding = false;
-        this.touchTimeout = null;
-        this.touchStartX = 0;
-        this.touchDeltaX = 0;
-        this._config = this._getConfig(config);
-        this._element = element;
-        this._indicatorsElement = this._element.querySelector(
-          Selector$2.INDICATORS
-        );
-        this._touchSupported =
-          "ontouchstart" in document.documentElement ||
-          navigator.maxTouchPoints > 0;
-        this._pointerEvent = Boolean(
-          window.PointerEvent || window.MSPointerEvent
-        );
+      }
 
-        this._addEventListeners();
-      } // Getters
-
-      var _proto = Carousel.prototype;
-
-      // Public
-      _proto.next = function next() {
-        if (!this._isSliding) {
-          this._slide(Direction.NEXT);
-        }
-      };
-
-      _proto.nextWhenVisible = function nextWhenVisible() {
-        // Don't call next when the page isn't visible
-        // or the carousel or its parent isn't visible
-        if (
-          !document.hidden &&
-          $(this._element).is(":visible") &&
-          $(this._element).css("visibility") !== "hidden"
-        ) {
-          this.next();
-        }
-      };
-
-      _proto.prev = function prev() {
-        if (!this._isSliding) {
-          this._slide(Direction.PREV);
-        }
-      };
-
-      _proto.pause = function pause(event) {
-        if (!event) {
-          this._isPaused = true;
-        }
-
-        if (this._element.querySelector(Selector$2.NEXT_PREV)) {
-          Util.triggerTransitionEnd(this._element);
-          this.cycle(true);
-        }
-
+      if (this._interval) {
         clearInterval(this._interval);
         this._interval = null;
-      };
+      }
 
-      _proto.cycle = function cycle(event) {
-        if (!event) {
-          this._isPaused = false;
-        }
-
-        if (this._interval) {
-          clearInterval(this._interval);
-          this._interval = null;
-        }
-
-        if (this._config.interval && !this._isPaused) {
-          this._interval = setInterval(
-            (document.visibilityState ? this.nextWhenVisible : this.next).bind(
-              this
-            ),
-            this._config.interval
-          );
-        }
-      };
-
-      _proto.to = function to(index) {
-        var _this = this;
-
-        this._activeElement = this._element.querySelector(
-          Selector$2.ACTIVE_ITEM
+      if (this._config.interval && !this._isPaused) {
+        this._interval = setInterval(
+          (document.visibilityState ? this.nextWhenVisible : this.next).bind(
+            this
+          ),
+          this._config.interval
         );
+      }
+    };
 
-        var activeIndex = this._getItemIndex(this._activeElement);
+    _proto.to = function to(index) {
+      var _this = this;
 
-        if (index > this._items.length - 1 || index < 0) {
-          return;
-        }
+      this._activeElement = this._element.querySelector(Selector$2.ACTIVE_ITEM);
 
-        if (this._isSliding) {
-          $(this._element).one(Event$2.SLID, function () {
-            return _this.to(index);
+      var activeIndex = this._getItemIndex(this._activeElement);
+
+      if (index > this._items.length - 1 || index < 0) {
+        return;
+      }
+
+      if (this._isSliding) {
+        $(this._element).one(Event$2.SLID, function () {
+          return _this.to(index);
+        });
+        return;
+      }
+
+      if (activeIndex === index) {
+        this.pause();
+        this.cycle();
+        return;
+      }
+
+      var direction = index > activeIndex ? Direction.NEXT : Direction.PREV;
+
+      this._slide(direction, this._items[index]);
+    };
+
+    _proto.dispose = function dispose() {
+      $(this._element).off(EVENT_KEY$2);
+      $.removeData(this._element, DATA_KEY$2);
+      this._items = null;
+      this._config = null;
+      this._element = null;
+      this._interval = null;
+      this._isPaused = null;
+      this._isSliding = null;
+      this._activeElement = null;
+      this._indicatorsElement = null;
+    }; // Private
+
+    _proto._getConfig = function _getConfig(config) {
+      config = _objectSpread({}, Default, config);
+      Util.typeCheckConfig(NAME$2, config, DefaultType);
+      return config;
+    };
+
+    _proto._handleSwipe = function _handleSwipe() {
+      var absDeltax = Math.abs(this.touchDeltaX);
+
+      if (absDeltax <= SWIPE_THRESHOLD) {
+        return;
+      }
+
+      var direction = absDeltax / this.touchDeltaX;
+
+      if (direction > 0) {
+        this.prev();
+      }
+
+      if (direction < 0) {
+        this.next();
+      }
+    };
+
+    _proto._addEventListeners = function _addEventListeners() {
+      var _this2 = this;
+
+      if (this._config.keyboard) {
+        $(this._element).on(Event$2.KEYDOWN, function (event) {
+          return _this2._keydown(event);
+        });
+      }
+
+      if (this._config.pause === "hover") {
+        $(this._element)
+          .on(Event$2.MOUSEENTER, function (event) {
+            return _this2.pause(event);
+          })
+          .on(Event$2.MOUSELEAVE, function (event) {
+            return _this2.cycle(event);
           });
-          return;
+      }
+
+      if (this._config.touch) {
+        this._addTouchEventListeners();
+      }
+    };
+
+    _proto._addTouchEventListeners = function _addTouchEventListeners() {
+      var _this3 = this;
+
+      if (!this._touchSupported) {
+        return;
+      }
+
+      var start = function start(event) {
+        if (
+          _this3._pointerEvent &&
+          PointerType[event.originalEvent.pointerType.toUpperCase()]
+        ) {
+          _this3.touchStartX = event.originalEvent.clientX;
+        } else if (!_this3._pointerEvent) {
+          _this3.touchStartX = event.originalEvent.touches[0].clientX;
         }
-
-        if (activeIndex === index) {
-          this.pause();
-          this.cycle();
-          return;
-        }
-
-        var direction = index > activeIndex ? Direction.NEXT : Direction.PREV;
-
-        this._slide(direction, this._items[index]);
       };
 
-      _proto.dispose = function dispose() {
-        $(this._element).off(EVENT_KEY$2);
-        $.removeData(this._element, DATA_KEY$2);
-        this._items = null;
-        this._config = null;
-        this._element = null;
-        this._interval = null;
-        this._isPaused = null;
-        this._isSliding = null;
-        this._activeElement = null;
-        this._indicatorsElement = null;
-      }; // Private
-
-      _proto._getConfig = function _getConfig(config) {
-        config = _objectSpread({}, Default, config);
-        Util.typeCheckConfig(NAME$2, config, DefaultType);
-        return config;
+      var move = function move(event) {
+        // ensure swiping with one touch and not pinching
+        if (
+          event.originalEvent.touches &&
+          event.originalEvent.touches.length > 1
+        ) {
+          _this3.touchDeltaX = 0;
+        } else {
+          _this3.touchDeltaX =
+            event.originalEvent.touches[0].clientX - _this3.touchStartX;
+        }
       };
 
-      _proto._handleSwipe = function _handleSwipe() {
-        var absDeltax = Math.abs(this.touchDeltaX);
-
-        if (absDeltax <= SWIPE_THRESHOLD) {
-          return;
+      var end = function end(event) {
+        if (
+          _this3._pointerEvent &&
+          PointerType[event.originalEvent.pointerType.toUpperCase()]
+        ) {
+          _this3.touchDeltaX = event.originalEvent.clientX - _this3.touchStartX;
         }
 
-        var direction = absDeltax / this.touchDeltaX; // swipe left
+        _this3._handleSwipe();
 
-        if (direction > 0) {
+        if (_this3._config.pause === "hover") {
+          _this3.pause();
+
+          if (_this3.touchTimeout) {
+            clearTimeout(_this3.touchTimeout);
+          }
+
+          _this3.touchTimeout = setTimeout(function (event) {
+            return _this3.cycle(event);
+          }, TOUCHEVENT_COMPAT_WAIT + _this3._config.interval);
+        }
+      };
+
+      $(this._element.querySelectorAll(Selector$2.ITEM_IMG)).on(
+        Event$2.DRAG_START,
+        function (e) {
+          return e.preventDefault();
+        }
+      );
+
+      if (this._pointerEvent) {
+        $(this._element).on(Event$2.POINTERDOWN, function (event) {
+          return start(event);
+        });
+        $(this._element).on(Event$2.POINTERUP, function (event) {
+          return end(event);
+        });
+
+        this._element.classList.add(ClassName$2.POINTER_EVENT);
+      } else {
+        $(this._element).on(Event$2.TOUCHSTART, function (event) {
+          return start(event);
+        });
+        $(this._element).on(Event$2.TOUCHMOVE, function (event) {
+          return move(event);
+        });
+        $(this._element).on(Event$2.TOUCHEND, function (event) {
+          return end(event);
+        });
+      }
+    };
+
+    _proto._keydown = function _keydown(event) {
+      if (/input|textarea/i.test(event.target.tagName)) {
+        return;
+      }
+
+      switch (event.which) {
+        case ARROW_LEFT_KEYCODE:
+          event.preventDefault();
           this.prev();
-        } // swipe right
+          break;
 
-        if (direction < 0) {
+        case ARROW_RIGHT_KEYCODE:
+          event.preventDefault();
           this.next();
+          break;
+
+        default:
+      }
+    };
+
+    _proto._getItemIndex = function _getItemIndex(element) {
+      this._items =
+        element && element.parentNode
+          ? [].slice.call(element.parentNode.querySelectorAll(Selector$2.ITEM))
+          : [];
+      return this._items.indexOf(element);
+    };
+
+    _proto._getItemByDirection = function _getItemByDirection(
+      direction,
+      activeElement
+    ) {
+      var isNextDirection = direction === Direction.NEXT;
+      var isPrevDirection = direction === Direction.PREV;
+
+      var activeIndex = this._getItemIndex(activeElement);
+
+      var lastItemIndex = this._items.length - 1;
+      var isGoingToWrap =
+        (isPrevDirection && activeIndex === 0) ||
+        (isNextDirection && activeIndex === lastItemIndex);
+
+      if (isGoingToWrap && !this._config.wrap) {
+        return activeElement;
+      }
+
+      var delta = direction === Direction.PREV ? -1 : 1;
+      var itemIndex = (activeIndex + delta) % this._items.length;
+      return itemIndex === -1
+        ? this._items[this._items.length - 1]
+        : this._items[itemIndex];
+    };
+
+    _proto._triggerSlideEvent = function _triggerSlideEvent(
+      relatedTarget,
+      eventDirectionName
+    ) {
+      var targetIndex = this._getItemIndex(relatedTarget);
+
+      var fromIndex = this._getItemIndex(
+        this._element.querySelector(Selector$2.ACTIVE_ITEM)
+      );
+
+      var slideEvent = $.Event(Event$2.SLIDE, {
+        relatedTarget: relatedTarget,
+        direction: eventDirectionName,
+        from: fromIndex,
+        to: targetIndex,
+      });
+      $(this._element).trigger(slideEvent);
+      return slideEvent;
+    };
+
+    _proto._setActiveIndicatorElement = function _setActiveIndicatorElement(
+      element
+    ) {
+      if (this._indicatorsElement) {
+        var indicators = [].slice.call(
+          this._indicatorsElement.querySelectorAll(Selector$2.ACTIVE)
+        );
+        $(indicators).removeClass(ClassName$2.ACTIVE);
+
+        var nextIndicator =
+          this._indicatorsElement.children[this._getItemIndex(element)];
+
+        if (nextIndicator) {
+          $(nextIndicator).addClass(ClassName$2.ACTIVE);
         }
-      };
+      }
+    };
 
-      _proto._addEventListeners = function _addEventListeners() {
-        var _this2 = this;
+    _proto._slide = function _slide(direction, element) {
+      var _this4 = this;
 
-        if (this._config.keyboard) {
-          $(this._element).on(Event$2.KEYDOWN, function (event) {
-            return _this2._keydown(event);
-          });
-        }
+      var activeElement = this._element.querySelector(Selector$2.ACTIVE_ITEM);
 
-        if (this._config.pause === "hover") {
-          $(this._element)
-            .on(Event$2.MOUSEENTER, function (event) {
-              return _this2.pause(event);
-            })
-            .on(Event$2.MOUSELEAVE, function (event) {
-              return _this2.cycle(event);
-            });
-        }
+      var activeElementIndex = this._getItemIndex(activeElement);
 
-        if (this._config.touch) {
-          this._addTouchEventListeners();
-        }
-      };
+      var nextElement =
+        element ||
+        (activeElement && this._getItemByDirection(direction, activeElement));
 
-      _proto._addTouchEventListeners = function _addTouchEventListeners() {
-        var _this3 = this;
+      var nextElementIndex = this._getItemIndex(nextElement);
 
-        if (!this._touchSupported) {
-          return;
-        }
+      var isCycling = Boolean(this._interval);
+      var directionalClassName;
+      var orderClassName;
+      var eventDirectionName;
 
-        var start = function start(event) {
-          if (
-            _this3._pointerEvent &&
-            PointerType[event.originalEvent.pointerType.toUpperCase()]
-          ) {
-            _this3.touchStartX = event.originalEvent.clientX;
-          } else if (!_this3._pointerEvent) {
-            _this3.touchStartX = event.originalEvent.touches[0].clientX;
-          }
-        };
+      if (direction === Direction.NEXT) {
+        directionalClassName = ClassName$2.LEFT;
+        orderClassName = ClassName$2.NEXT;
+        eventDirectionName = Direction.LEFT;
+      } else {
+        directionalClassName = ClassName$2.RIGHT;
+        orderClassName = ClassName$2.PREV;
+        eventDirectionName = Direction.RIGHT;
+      }
 
-        var move = function move(event) {
-          // ensure swiping with one touch and not pinching
-          if (
-            event.originalEvent.touches &&
-            event.originalEvent.touches.length > 1
-          ) {
-            _this3.touchDeltaX = 0;
-          } else {
-            _this3.touchDeltaX =
-              event.originalEvent.touches[0].clientX - _this3.touchStartX;
-          }
-        };
+      if (nextElement && $(nextElement).hasClass(ClassName$2.ACTIVE)) {
+        this._isSliding = false;
+        return;
+      }
 
-        var end = function end(event) {
-          if (
-            _this3._pointerEvent &&
-            PointerType[event.originalEvent.pointerType.toUpperCase()]
-          ) {
-            _this3.touchDeltaX =
-              event.originalEvent.clientX - _this3.touchStartX;
-          }
+      var slideEvent = this._triggerSlideEvent(nextElement, eventDirectionName);
 
-          _this3._handleSwipe();
+      if (slideEvent.isDefaultPrevented()) {
+        return;
+      }
 
-          if (_this3._config.pause === "hover") {
-            _this3.pause();
+      if (!activeElement || !nextElement) {
+        return;
+      }
 
-            if (_this3.touchTimeout) {
-              clearTimeout(_this3.touchTimeout);
-            }
+      this._isSliding = true;
 
-            _this3.touchTimeout = setTimeout(function (event) {
-              return _this3.cycle(event);
-            }, TOUCHEVENT_COMPAT_WAIT + _this3._config.interval);
-          }
-        };
+      if (isCycling) {
+        this.pause();
+      }
 
-        $(this._element.querySelectorAll(Selector$2.ITEM_IMG)).on(
-          Event$2.DRAG_START,
-          function (e) {
-            return e.preventDefault();
-          }
+      this._setActiveIndicatorElement(nextElement);
+
+      var slidEvent = $.Event(Event$2.SLID, {
+        relatedTarget: nextElement,
+        direction: eventDirectionName,
+        from: activeElementIndex,
+        to: nextElementIndex,
+      });
+
+      if ($(this._element).hasClass(ClassName$2.SLIDE)) {
+        $(nextElement).addClass(orderClassName);
+        Util.reflow(nextElement);
+        $(activeElement).addClass(directionalClassName);
+        $(nextElement).addClass(directionalClassName);
+        var nextElementInterval = parseInt(
+          nextElement.getAttribute("data-interval"),
+          10
         );
 
-        if (this._pointerEvent) {
-          $(this._element).on(Event$2.POINTERDOWN, function (event) {
-            return start(event);
-          });
-          $(this._element).on(Event$2.POINTERUP, function (event) {
-            return end(event);
-          });
-
-          this._element.classList.add(ClassName$2.POINTER_EVENT);
+        if (nextElementInterval) {
+          this._config.defaultInterval =
+            this._config.defaultInterval || this._config.interval;
+          this._config.interval = nextElementInterval;
         } else {
-          $(this._element).on(Event$2.TOUCHSTART, function (event) {
-            return start(event);
-          });
-          $(this._element).on(Event$2.TOUCHMOVE, function (event) {
-            return move(event);
-          });
-          $(this._element).on(Event$2.TOUCHEND, function (event) {
-            return end(event);
-          });
-        }
-      };
-
-      _proto._keydown = function _keydown(event) {
-        if (/input|textarea/i.test(event.target.tagName)) {
-          return;
+          this._config.interval =
+            this._config.defaultInterval || this._config.interval;
         }
 
-        switch (event.which) {
-          case ARROW_LEFT_KEYCODE:
-            event.preventDefault();
-            this.prev();
-            break;
+        var transitionDuration =
+          Util.getTransitionDurationFromElement(activeElement);
+        $(activeElement)
+          .one(Util.TRANSITION_END, function () {
+            $(nextElement)
+              .removeClass(directionalClassName + " " + orderClassName)
+              .addClass(ClassName$2.ACTIVE);
+            $(activeElement).removeClass(
+              ClassName$2.ACTIVE +
+                " " +
+                orderClassName +
+                " " +
+                directionalClassName
+            );
+            _this4._isSliding = false;
+            setTimeout(function () {
+              return $(_this4._element).trigger(slidEvent);
+            }, 0);
+          })
+          .emulateTransitionEnd(transitionDuration);
+      } else {
+        $(activeElement).removeClass(ClassName$2.ACTIVE);
+        $(nextElement).addClass(ClassName$2.ACTIVE);
+        this._isSliding = false;
+        $(this._element).trigger(slidEvent);
+      }
 
-          case ARROW_RIGHT_KEYCODE:
-            event.preventDefault();
-            this.next();
-            break;
+      if (isCycling) {
+        this.cycle();
+      }
+    };
 
-          default:
-        }
-      };
+    Carousel._jQueryInterface = function _jQueryInterface(config) {
+      return this.each(function () {
+        var data = $(this).data(DATA_KEY$2);
 
-      _proto._getItemIndex = function _getItemIndex(element) {
-        this._items =
-          element && element.parentNode
-            ? [].slice.call(
-                element.parentNode.querySelectorAll(Selector$2.ITEM)
-              )
-            : [];
-        return this._items.indexOf(element);
-      };
+        var _config = _objectSpread({}, Default, $(this).data());
 
-      _proto._getItemByDirection = function _getItemByDirection(
-        direction,
-        activeElement
-      ) {
-        var isNextDirection = direction === Direction.NEXT;
-        var isPrevDirection = direction === Direction.PREV;
-
-        var activeIndex = this._getItemIndex(activeElement);
-
-        var lastItemIndex = this._items.length - 1;
-        var isGoingToWrap =
-          (isPrevDirection && activeIndex === 0) ||
-          (isNextDirection && activeIndex === lastItemIndex);
-
-        if (isGoingToWrap && !this._config.wrap) {
-          return activeElement;
-        }
-
-        var delta = direction === Direction.PREV ? -1 : 1;
-        var itemIndex = (activeIndex + delta) % this._items.length;
-        return itemIndex === -1
-          ? this._items[this._items.length - 1]
-          : this._items[itemIndex];
-      };
-
-      _proto._triggerSlideEvent = function _triggerSlideEvent(
-        relatedTarget,
-        eventDirectionName
-      ) {
-        var targetIndex = this._getItemIndex(relatedTarget);
-
-        var fromIndex = this._getItemIndex(
-          this._element.querySelector(Selector$2.ACTIVE_ITEM)
-        );
-
-        var slideEvent = $.Event(Event$2.SLIDE, {
-          relatedTarget: relatedTarget,
-          direction: eventDirectionName,
-          from: fromIndex,
-          to: targetIndex,
-        });
-        $(this._element).trigger(slideEvent);
-        return slideEvent;
-      };
-
-      _proto._setActiveIndicatorElement = function _setActiveIndicatorElement(
-        element
-      ) {
-        if (this._indicatorsElement) {
-          var indicators = [].slice.call(
-            this._indicatorsElement.querySelectorAll(Selector$2.ACTIVE)
-          );
-          $(indicators).removeClass(ClassName$2.ACTIVE);
-
-          var nextIndicator =
-            this._indicatorsElement.children[this._getItemIndex(element)];
-
-          if (nextIndicator) {
-            $(nextIndicator).addClass(ClassName$2.ACTIVE);
-          }
-        }
-      };
-
-      _proto._slide = function _slide(direction, element) {
-        var _this4 = this;
-
-        var activeElement = this._element.querySelector(Selector$2.ACTIVE_ITEM);
-
-        var activeElementIndex = this._getItemIndex(activeElement);
-
-        var nextElement =
-          element ||
-          (activeElement && this._getItemByDirection(direction, activeElement));
-
-        var nextElementIndex = this._getItemIndex(nextElement);
-
-        var isCycling = Boolean(this._interval);
-        var directionalClassName;
-        var orderClassName;
-        var eventDirectionName;
-
-        if (direction === Direction.NEXT) {
-          directionalClassName = ClassName$2.LEFT;
-          orderClassName = ClassName$2.NEXT;
-          eventDirectionName = Direction.LEFT;
-        } else {
-          directionalClassName = ClassName$2.RIGHT;
-          orderClassName = ClassName$2.PREV;
-          eventDirectionName = Direction.RIGHT;
+        if (typeof config === "object") {
+          _config = _objectSpread({}, _config, config);
         }
 
-        if (nextElement && $(nextElement).hasClass(ClassName$2.ACTIVE)) {
-          this._isSliding = false;
-          return;
+        var action = typeof config === "string" ? config : _config.slide;
+
+        if (!data) {
+          data = new Carousel(this, _config);
+          $(this).data(DATA_KEY$2, data);
         }
 
-        var slideEvent = this._triggerSlideEvent(
-          nextElement,
-          eventDirectionName
-        );
-
-        if (slideEvent.isDefaultPrevented()) {
-          return;
-        }
-
-        if (!activeElement || !nextElement) {
-          // Some weirdness is happening, so we bail
-          return;
-        }
-
-        this._isSliding = true;
-
-        if (isCycling) {
-          this.pause();
-        }
-
-        this._setActiveIndicatorElement(nextElement);
-
-        var slidEvent = $.Event(Event$2.SLID, {
-          relatedTarget: nextElement,
-          direction: eventDirectionName,
-          from: activeElementIndex,
-          to: nextElementIndex,
-        });
-
-        if ($(this._element).hasClass(ClassName$2.SLIDE)) {
-          $(nextElement).addClass(orderClassName);
-          Util.reflow(nextElement);
-          $(activeElement).addClass(directionalClassName);
-          $(nextElement).addClass(directionalClassName);
-          var nextElementInterval = parseInt(
-            nextElement.getAttribute("data-interval"),
-            10
-          );
-
-          if (nextElementInterval) {
-            this._config.defaultInterval =
-              this._config.defaultInterval || this._config.interval;
-            this._config.interval = nextElementInterval;
-          } else {
-            this._config.interval =
-              this._config.defaultInterval || this._config.interval;
+        if (typeof config === "number") {
+          data.to(config);
+        } else if (typeof action === "string") {
+          if (typeof data[action] === "undefined") {
+            throw new TypeError('No method named "' + action + '"');
           }
 
-          var transitionDuration =
-            Util.getTransitionDurationFromElement(activeElement);
-          $(activeElement)
-            .one(Util.TRANSITION_END, function () {
-              $(nextElement)
-                .removeClass(directionalClassName + " " + orderClassName)
-                .addClass(ClassName$2.ACTIVE);
-              $(activeElement).removeClass(
-                ClassName$2.ACTIVE +
-                  " " +
-                  orderClassName +
-                  " " +
-                  directionalClassName
-              );
-              _this4._isSliding = false;
-              setTimeout(function () {
-                return $(_this4._element).trigger(slidEvent);
-              }, 0);
-            })
-            .emulateTransitionEnd(transitionDuration);
-        } else {
-          $(activeElement).removeClass(ClassName$2.ACTIVE);
-          $(nextElement).addClass(ClassName$2.ACTIVE);
-          this._isSliding = false;
-          $(this._element).trigger(slidEvent);
+          data[action]();
+        } else if (_config.interval && _config.ride) {
+          data.pause();
+          data.cycle();
         }
+      });
+    };
 
-        if (isCycling) {
-          this.cycle();
-        }
-      }; // Static
+    Carousel._dataApiClickHandler = function _dataApiClickHandler(event) {
+      var selector = Util.getSelectorFromElement(this);
 
-      Carousel._jQueryInterface = function _jQueryInterface(config) {
-        return this.each(function () {
-          var data = $(this).data(DATA_KEY$2);
+      if (!selector) {
+        return;
+      }
 
-          var _config = _objectSpread({}, Default, $(this).data());
+      var target = $(selector)[0];
 
-          if (typeof config === "object") {
-            _config = _objectSpread({}, _config, config);
-          }
+      if (!target || !$(target).hasClass(ClassName$2.CAROUSEL)) {
+        return;
+      }
 
-          var action = typeof config === "string" ? config : _config.slide;
+      var config = _objectSpread({}, $(target).data(), $(this).data());
 
-          if (!data) {
-            data = new Carousel(this, _config);
-            $(this).data(DATA_KEY$2, data);
-          }
+      var slideIndex = this.getAttribute("data-slide-to");
 
-          if (typeof config === "number") {
-            data.to(config);
-          } else if (typeof action === "string") {
-            if (typeof data[action] === "undefined") {
-              throw new TypeError('No method named "' + action + '"');
-            }
+      if (slideIndex) {
+        config.interval = false;
+      }
 
-            data[action]();
-          } else if (_config.interval && _config.ride) {
-            data.pause();
-            data.cycle();
-          }
-        });
-      };
+      Carousel._jQueryInterface.call($(target), config);
 
-      Carousel._dataApiClickHandler = function _dataApiClickHandler(event) {
-        var selector = Util.getSelectorFromElement(this);
+      if (slideIndex) {
+        $(target).data(DATA_KEY$2).to(slideIndex);
+      }
 
-        if (!selector) {
-          return;
-        }
+      event.preventDefault();
+    };
 
-        var target = $(selector)[0];
-
-        if (!target || !$(target).hasClass(ClassName$2.CAROUSEL)) {
-          return;
-        }
-
-        var config = _objectSpread({}, $(target).data(), $(this).data());
-
-        var slideIndex = this.getAttribute("data-slide-to");
-
-        if (slideIndex) {
-          config.interval = false;
-        }
-
-        Carousel._jQueryInterface.call($(target), config);
-
-        if (slideIndex) {
-          $(target).data(DATA_KEY$2).to(slideIndex);
-        }
-
-        event.preventDefault();
-      };
-
-      _createClass(Carousel, null, [
-        {
-          key: "VERSION",
-          get: function get() {
-            return VERSION$2;
-          },
+    _createClass(Carousel, null, [
+      {
+        key: "VERSION",
+        get: function get() {
+          return VERSION$2;
         },
-        {
-          key: "Default",
-          get: function get() {
-            return Default;
-          },
+      },
+      {
+        key: "Default",
+        get: function get() {
+          return Default;
         },
-      ]);
+      },
+    ]);
 
-      return Carousel;
-    })();
-  /**
-   * ------------------------------------------------------------------------
-   * Data Api implementation
-   * ------------------------------------------------------------------------
-   */
+    return Carousel;
+  })();
 
   $(document).on(
     Event$2.CLICK_DATA_API,
@@ -1256,343 +1233,335 @@
     DATA_TOGGLE: '[data-toggle="collapse"]',
   };
 
-  var Collapse =
-    /*#__PURE__*/
-    (function () {
-      function Collapse(element, config) {
-        this._isTransitioning = false;
-        this._element = element;
-        this._config = this._getConfig(config);
-        this._triggerArray = [].slice.call(
-          document.querySelectorAll(
-            '[data-toggle="collapse"][href="#' +
-              element.id +
-              '"],' +
-              ('[data-toggle="collapse"][data-target="#' + element.id + '"]')
-          )
-        );
-        var toggleList = [].slice.call(
-          document.querySelectorAll(Selector$3.DATA_TOGGLE)
-        );
+  var Collapse = (function () {
+    function Collapse(element, config) {
+      this._isTransitioning = false;
+      this._element = element;
+      this._config = this._getConfig(config);
+      this._triggerArray = [].slice.call(
+        document.querySelectorAll(
+          '[data-toggle="collapse"][href="#' +
+            element.id +
+            '"],' +
+            ('[data-toggle="collapse"][data-target="#' + element.id + '"]')
+        )
+      );
+      var toggleList = [].slice.call(
+        document.querySelectorAll(Selector$3.DATA_TOGGLE)
+      );
 
-        for (var i = 0, len = toggleList.length; i < len; i++) {
-          var elem = toggleList[i];
-          var selector = Util.getSelectorFromElement(elem);
-          var filterElement = [].slice
-            .call(document.querySelectorAll(selector))
-            .filter(function (foundElem) {
-              return foundElem === element;
-            });
+      for (var i = 0, len = toggleList.length; i < len; i++) {
+        var elem = toggleList[i];
+        var selector = Util.getSelectorFromElement(elem);
+        var filterElement = [].slice
+          .call(document.querySelectorAll(selector))
+          .filter(function (foundElem) {
+            return foundElem === element;
+          });
 
-          if (selector !== null && filterElement.length > 0) {
-            this._selector = selector;
+        if (selector !== null && filterElement.length > 0) {
+          this._selector = selector;
 
-            this._triggerArray.push(elem);
-          }
+          this._triggerArray.push(elem);
         }
+      }
 
-        this._parent = this._config.parent ? this._getParent() : null;
+      this._parent = this._config.parent ? this._getParent() : null;
 
-        if (!this._config.parent) {
-          this._addAriaAndCollapsedClass(this._element, this._triggerArray);
-        }
+      if (!this._config.parent) {
+        this._addAriaAndCollapsedClass(this._element, this._triggerArray);
+      }
 
-        if (this._config.toggle) {
-          this.toggle();
-        }
-      } // Getters
+      if (this._config.toggle) {
+        this.toggle();
+      }
+    }
 
-      var _proto = Collapse.prototype;
+    var _proto = Collapse.prototype;
 
-      // Public
-      _proto.toggle = function toggle() {
-        if ($(this._element).hasClass(ClassName$3.SHOW)) {
-          this.hide();
-        } else {
-          this.show();
-        }
-      };
+    _proto.toggle = function toggle() {
+      if ($(this._element).hasClass(ClassName$3.SHOW)) {
+        this.hide();
+      } else {
+        this.show();
+      }
+    };
 
-      _proto.show = function show() {
-        var _this = this;
+    _proto.show = function show() {
+      var _this = this;
 
-        if (
-          this._isTransitioning ||
-          $(this._element).hasClass(ClassName$3.SHOW)
-        ) {
-          return;
-        }
-
-        var actives;
-        var activesData;
-
-        if (this._parent) {
-          actives = [].slice
-            .call(this._parent.querySelectorAll(Selector$3.ACTIVES))
-            .filter(function (elem) {
-              if (typeof _this._config.parent === "string") {
-                return (
-                  elem.getAttribute("data-parent") === _this._config.parent
-                );
-              }
-
-              return elem.classList.contains(ClassName$3.COLLAPSE);
-            });
-
-          if (actives.length === 0) {
-            actives = null;
-          }
-        }
-
-        if (actives) {
-          activesData = $(actives).not(this._selector).data(DATA_KEY$3);
-
-          if (activesData && activesData._isTransitioning) {
-            return;
-          }
-        }
-
-        var startEvent = $.Event(Event$3.SHOW);
-        $(this._element).trigger(startEvent);
-
-        if (startEvent.isDefaultPrevented()) {
-          return;
-        }
-
-        if (actives) {
-          Collapse._jQueryInterface.call(
-            $(actives).not(this._selector),
-            "hide"
-          );
-
-          if (!activesData) {
-            $(actives).data(DATA_KEY$3, null);
-          }
-        }
-
-        var dimension = this._getDimension();
-
-        $(this._element)
-          .removeClass(ClassName$3.COLLAPSE)
-          .addClass(ClassName$3.COLLAPSING);
-        this._element.style[dimension] = 0;
-
-        if (this._triggerArray.length) {
-          $(this._triggerArray)
-            .removeClass(ClassName$3.COLLAPSED)
-            .attr("aria-expanded", true);
-        }
-
-        this.setTransitioning(true);
-
-        var complete = function complete() {
-          $(_this._element)
-            .removeClass(ClassName$3.COLLAPSING)
-            .addClass(ClassName$3.COLLAPSE)
-            .addClass(ClassName$3.SHOW);
-          _this._element.style[dimension] = "";
-
-          _this.setTransitioning(false);
-
-          $(_this._element).trigger(Event$3.SHOWN);
-        };
-
-        var capitalizedDimension =
-          dimension[0].toUpperCase() + dimension.slice(1);
-        var scrollSize = "scroll" + capitalizedDimension;
-        var transitionDuration = Util.getTransitionDurationFromElement(
-          this._element
-        );
-        $(this._element)
-          .one(Util.TRANSITION_END, complete)
-          .emulateTransitionEnd(transitionDuration);
-        this._element.style[dimension] = this._element[scrollSize] + "px";
-      };
-
-      _proto.hide = function hide() {
-        var _this2 = this;
-
-        if (
-          this._isTransitioning ||
-          !$(this._element).hasClass(ClassName$3.SHOW)
-        ) {
-          return;
-        }
-
-        var startEvent = $.Event(Event$3.HIDE);
-        $(this._element).trigger(startEvent);
-
-        if (startEvent.isDefaultPrevented()) {
-          return;
-        }
-
-        var dimension = this._getDimension();
-
-        this._element.style[dimension] =
-          this._element.getBoundingClientRect()[dimension] + "px";
-        Util.reflow(this._element);
-        $(this._element)
-          .addClass(ClassName$3.COLLAPSING)
-          .removeClass(ClassName$3.COLLAPSE)
-          .removeClass(ClassName$3.SHOW);
-        var triggerArrayLength = this._triggerArray.length;
-
-        if (triggerArrayLength > 0) {
-          for (var i = 0; i < triggerArrayLength; i++) {
-            var trigger = this._triggerArray[i];
-            var selector = Util.getSelectorFromElement(trigger);
-
-            if (selector !== null) {
-              var $elem = $([].slice.call(document.querySelectorAll(selector)));
-
-              if (!$elem.hasClass(ClassName$3.SHOW)) {
-                $(trigger)
-                  .addClass(ClassName$3.COLLAPSED)
-                  .attr("aria-expanded", false);
-              }
-            }
-          }
-        }
-
-        this.setTransitioning(true);
-
-        var complete = function complete() {
-          _this2.setTransitioning(false);
-
-          $(_this2._element)
-            .removeClass(ClassName$3.COLLAPSING)
-            .addClass(ClassName$3.COLLAPSE)
-            .trigger(Event$3.HIDDEN);
-        };
-
-        this._element.style[dimension] = "";
-        var transitionDuration = Util.getTransitionDurationFromElement(
-          this._element
-        );
-        $(this._element)
-          .one(Util.TRANSITION_END, complete)
-          .emulateTransitionEnd(transitionDuration);
-      };
-
-      _proto.setTransitioning = function setTransitioning(isTransitioning) {
-        this._isTransitioning = isTransitioning;
-      };
-
-      _proto.dispose = function dispose() {
-        $.removeData(this._element, DATA_KEY$3);
-        this._config = null;
-        this._parent = null;
-        this._element = null;
-        this._triggerArray = null;
-        this._isTransitioning = null;
-      }; // Private
-
-      _proto._getConfig = function _getConfig(config) {
-        config = _objectSpread({}, Default$1, config);
-        config.toggle = Boolean(config.toggle); // Coerce string values
-
-        Util.typeCheckConfig(NAME$3, config, DefaultType$1);
-        return config;
-      };
-
-      _proto._getDimension = function _getDimension() {
-        var hasWidth = $(this._element).hasClass(Dimension.WIDTH);
-        return hasWidth ? Dimension.WIDTH : Dimension.HEIGHT;
-      };
-
-      _proto._getParent = function _getParent() {
-        var _this3 = this;
-
-        var parent;
-
-        if (Util.isElement(this._config.parent)) {
-          parent = this._config.parent; // It's a jQuery object
-
-          if (typeof this._config.parent.jquery !== "undefined") {
-            parent = this._config.parent[0];
-          }
-        } else {
-          parent = document.querySelector(this._config.parent);
-        }
-
-        var selector =
-          '[data-toggle="collapse"][data-parent="' + this._config.parent + '"]';
-        var children = [].slice.call(parent.querySelectorAll(selector));
-        $(children).each(function (i, element) {
-          _this3._addAriaAndCollapsedClass(
-            Collapse._getTargetFromElement(element),
-            [element]
-          );
-        });
-        return parent;
-      };
-
-      _proto._addAriaAndCollapsedClass = function _addAriaAndCollapsedClass(
-        element,
-        triggerArray
+      if (
+        this._isTransitioning ||
+        $(this._element).hasClass(ClassName$3.SHOW)
       ) {
-        var isOpen = $(element).hasClass(ClassName$3.SHOW);
+        return;
+      }
 
-        if (triggerArray.length) {
-          $(triggerArray)
-            .toggleClass(ClassName$3.COLLAPSED, !isOpen)
-            .attr("aria-expanded", isOpen);
-        }
-      }; // Static
+      var actives;
+      var activesData;
 
-      Collapse._getTargetFromElement = function _getTargetFromElement(element) {
-        var selector = Util.getSelectorFromElement(element);
-        return selector ? document.querySelector(selector) : null;
-      };
-
-      Collapse._jQueryInterface = function _jQueryInterface(config) {
-        return this.each(function () {
-          var $this = $(this);
-          var data = $this.data(DATA_KEY$3);
-
-          var _config = _objectSpread(
-            {},
-            Default$1,
-            $this.data(),
-            typeof config === "object" && config ? config : {}
-          );
-
-          if (!data && _config.toggle && /show|hide/.test(config)) {
-            _config.toggle = false;
-          }
-
-          if (!data) {
-            data = new Collapse(this, _config);
-            $this.data(DATA_KEY$3, data);
-          }
-
-          if (typeof config === "string") {
-            if (typeof data[config] === "undefined") {
-              throw new TypeError('No method named "' + config + '"');
+      if (this._parent) {
+        actives = [].slice
+          .call(this._parent.querySelectorAll(Selector$3.ACTIVES))
+          .filter(function (elem) {
+            if (typeof _this._config.parent === "string") {
+              return elem.getAttribute("data-parent") === _this._config.parent;
             }
 
-            data[config]();
-          }
-        });
+            return elem.classList.contains(ClassName$3.COLLAPSE);
+          });
+
+        if (actives.length === 0) {
+          actives = null;
+        }
+      }
+
+      if (actives) {
+        activesData = $(actives).not(this._selector).data(DATA_KEY$3);
+
+        if (activesData && activesData._isTransitioning) {
+          return;
+        }
+      }
+
+      var startEvent = $.Event(Event$3.SHOW);
+      $(this._element).trigger(startEvent);
+
+      if (startEvent.isDefaultPrevented()) {
+        return;
+      }
+
+      if (actives) {
+        Collapse._jQueryInterface.call($(actives).not(this._selector), "hide");
+
+        if (!activesData) {
+          $(actives).data(DATA_KEY$3, null);
+        }
+      }
+
+      var dimension = this._getDimension();
+
+      $(this._element)
+        .removeClass(ClassName$3.COLLAPSE)
+        .addClass(ClassName$3.COLLAPSING);
+      this._element.style[dimension] = 0;
+
+      if (this._triggerArray.length) {
+        $(this._triggerArray)
+          .removeClass(ClassName$3.COLLAPSED)
+          .attr("aria-expanded", true);
+      }
+
+      this.setTransitioning(true);
+
+      var complete = function complete() {
+        $(_this._element)
+          .removeClass(ClassName$3.COLLAPSING)
+          .addClass(ClassName$3.COLLAPSE)
+          .addClass(ClassName$3.SHOW);
+        _this._element.style[dimension] = "";
+
+        _this.setTransitioning(false);
+
+        $(_this._element).trigger(Event$3.SHOWN);
       };
 
-      _createClass(Collapse, null, [
-        {
-          key: "VERSION",
-          get: function get() {
-            return VERSION$3;
-          },
-        },
-        {
-          key: "Default",
-          get: function get() {
-            return Default$1;
-          },
-        },
-      ]);
+      var capitalizedDimension =
+        dimension[0].toUpperCase() + dimension.slice(1);
+      var scrollSize = "scroll" + capitalizedDimension;
+      var transitionDuration = Util.getTransitionDurationFromElement(
+        this._element
+      );
+      $(this._element)
+        .one(Util.TRANSITION_END, complete)
+        .emulateTransitionEnd(transitionDuration);
+      this._element.style[dimension] = this._element[scrollSize] + "px";
+    };
 
-      return Collapse;
-    })();
+    _proto.hide = function hide() {
+      var _this2 = this;
+
+      if (
+        this._isTransitioning ||
+        !$(this._element).hasClass(ClassName$3.SHOW)
+      ) {
+        return;
+      }
+
+      var startEvent = $.Event(Event$3.HIDE);
+      $(this._element).trigger(startEvent);
+
+      if (startEvent.isDefaultPrevented()) {
+        return;
+      }
+
+      var dimension = this._getDimension();
+
+      this._element.style[dimension] =
+        this._element.getBoundingClientRect()[dimension] + "px";
+      Util.reflow(this._element);
+      $(this._element)
+        .addClass(ClassName$3.COLLAPSING)
+        .removeClass(ClassName$3.COLLAPSE)
+        .removeClass(ClassName$3.SHOW);
+      var triggerArrayLength = this._triggerArray.length;
+
+      if (triggerArrayLength > 0) {
+        for (var i = 0; i < triggerArrayLength; i++) {
+          var trigger = this._triggerArray[i];
+          var selector = Util.getSelectorFromElement(trigger);
+
+          if (selector !== null) {
+            var $elem = $([].slice.call(document.querySelectorAll(selector)));
+
+            if (!$elem.hasClass(ClassName$3.SHOW)) {
+              $(trigger)
+                .addClass(ClassName$3.COLLAPSED)
+                .attr("aria-expanded", false);
+            }
+          }
+        }
+      }
+
+      this.setTransitioning(true);
+
+      var complete = function complete() {
+        _this2.setTransitioning(false);
+
+        $(_this2._element)
+          .removeClass(ClassName$3.COLLAPSING)
+          .addClass(ClassName$3.COLLAPSE)
+          .trigger(Event$3.HIDDEN);
+      };
+
+      this._element.style[dimension] = "";
+      var transitionDuration = Util.getTransitionDurationFromElement(
+        this._element
+      );
+      $(this._element)
+        .one(Util.TRANSITION_END, complete)
+        .emulateTransitionEnd(transitionDuration);
+    };
+
+    _proto.setTransitioning = function setTransitioning(isTransitioning) {
+      this._isTransitioning = isTransitioning;
+    };
+
+    _proto.dispose = function dispose() {
+      $.removeData(this._element, DATA_KEY$3);
+      this._config = null;
+      this._parent = null;
+      this._element = null;
+      this._triggerArray = null;
+      this._isTransitioning = null;
+    }; // Private
+
+    _proto._getConfig = function _getConfig(config) {
+      config = _objectSpread({}, Default$1, config);
+      config.toggle = Boolean(config.toggle); // Coerce string values
+
+      Util.typeCheckConfig(NAME$3, config, DefaultType$1);
+      return config;
+    };
+
+    _proto._getDimension = function _getDimension() {
+      var hasWidth = $(this._element).hasClass(Dimension.WIDTH);
+      return hasWidth ? Dimension.WIDTH : Dimension.HEIGHT;
+    };
+
+    _proto._getParent = function _getParent() {
+      var _this3 = this;
+
+      var parent;
+
+      if (Util.isElement(this._config.parent)) {
+        parent = this._config.parent; // It's a jQuery object
+
+        if (typeof this._config.parent.jquery !== "undefined") {
+          parent = this._config.parent[0];
+        }
+      } else {
+        parent = document.querySelector(this._config.parent);
+      }
+
+      var selector =
+        '[data-toggle="collapse"][data-parent="' + this._config.parent + '"]';
+      var children = [].slice.call(parent.querySelectorAll(selector));
+      $(children).each(function (i, element) {
+        _this3._addAriaAndCollapsedClass(
+          Collapse._getTargetFromElement(element),
+          [element]
+        );
+      });
+      return parent;
+    };
+
+    _proto._addAriaAndCollapsedClass = function _addAriaAndCollapsedClass(
+      element,
+      triggerArray
+    ) {
+      var isOpen = $(element).hasClass(ClassName$3.SHOW);
+
+      if (triggerArray.length) {
+        $(triggerArray)
+          .toggleClass(ClassName$3.COLLAPSED, !isOpen)
+          .attr("aria-expanded", isOpen);
+      }
+    }; // Static
+
+    Collapse._getTargetFromElement = function _getTargetFromElement(element) {
+      var selector = Util.getSelectorFromElement(element);
+      return selector ? document.querySelector(selector) : null;
+    };
+
+    Collapse._jQueryInterface = function _jQueryInterface(config) {
+      return this.each(function () {
+        var $this = $(this);
+        var data = $this.data(DATA_KEY$3);
+
+        var _config = _objectSpread(
+          {},
+          Default$1,
+          $this.data(),
+          typeof config === "object" && config ? config : {}
+        );
+
+        if (!data && _config.toggle && /show|hide/.test(config)) {
+          _config.toggle = false;
+        }
+
+        if (!data) {
+          data = new Collapse(this, _config);
+          $this.data(DATA_KEY$3, data);
+        }
+
+        if (typeof config === "string") {
+          if (typeof data[config] === "undefined") {
+            throw new TypeError('No method named "' + config + '"');
+          }
+
+          data[config]();
+        }
+      });
+    };
+
+    _createClass(Collapse, null, [
+      {
+        key: "VERSION",
+        get: function get() {
+          return VERSION$3;
+        },
+      },
+      {
+        key: "Default",
+        get: function get() {
+          return Default$1;
+        },
+      },
+    ]);
+
+    return Collapse;
+  })();
   /**
    * ------------------------------------------------------------------------
    * Data Api implementation
